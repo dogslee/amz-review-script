@@ -64,6 +64,11 @@ async def get_amazon_reviews(
                 f"https://www.amazon.{locale}/product-reviews/{asin}"
                 f"?pageNumber={page_num}&sortBy=recent&filterByStar=one_star"
             )
+            if page_num > 1:
+                url = (
+                    f"https://www.amazon.{locale}/product-reviews/{asin}/ref=cm_cr_getr_d_paging_btm_next_{page_num}"
+                    f"?pageNumber={page_num}&sortBy=recent&filterByStar=one_star"
+                )
             print(f"\n{'='*60}")
             print(f"正在抓取第 {page_num} 页：{url}")
 
@@ -229,7 +234,7 @@ def save_to_csv(reviews: list, output_dir: str = OUTPUT_DIR, filename: str = "re
 if __name__ == "__main__":
     # ========== 配置区 ==========
     ASIN            = "B0CG5FTHT9"  # 替换为目标商品 ASIN
-    PAGES           = 1             # 爬取页数（每页约10条）
+    PAGES           = 2             # 爬取页数（每页约10条）
     LOCALE          = "com"         # 站点：com / co.jp / co.uk / de 等
     OUTPUT_DIR      = "output"      # 截图与评论数据统一输出目录
     SAVE_SCREENSHOTS = False        # 是否保存每页调试截图（默认不保存）
