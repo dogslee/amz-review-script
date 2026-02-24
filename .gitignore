@@ -1,0 +1,51 @@
+# 虚拟环境
+.venv/
+venv/
+env/
+.env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.so
+*.egg
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# 项目生成/敏感文件（勿提交）
+amazon_state.json
+output/
+reviews.json
+reviews.csv
+debug_page_*.png
+
+# Playwright
+playwright-report/
+test-results/
+.blob-report/
+.playwright/
+
+# 环境变量与本地配置
+.env
+.env.local
+*.local
+
+# IDE / 编辑器
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 日志与临时
+*.log
+*.tmp
+.cache/
