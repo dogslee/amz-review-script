@@ -18,8 +18,6 @@ def _reviews_url(
     params = f"pageNumber={page_num}&sortBy=recent"
     if filter_by_star and filter_by_star.lower() != "all":
         params += f"&filterByStar={filter_by_star.strip().lower()}"
-    if page_num > 1:
-        return f"{base}/ref=cm_cr_getr_d_paging_btm_next_{page_num}?{params}"
     return f"{base}?{params}"
 
 
@@ -76,19 +74,23 @@ async def get_amazon_reviews(
 
         page = await context.new_page()
 
+        # 仅首次加载第一页，后续通过点击「Next page」翻页
+        first_url = _reviews_url(locale, asin, 1, filter_by_star)
+        print(f"\n{'='*60}")
+        print(f"正在打开评论页：{first_url}")
+        try:
+            await page.goto(first_url, wait_until="domcontentloaded", timeout=30000)
+        except Exception as e:
+            print(f"❌ 页面加载失败：{e}")
+            await browser.close()
+            return []
+
+        # 等待页面渲染
+        await asyncio.sleep(4)
+
         for page_num in range(1, pages + 1):
-            url = _reviews_url(locale, asin, page_num, filter_by_star)
             print(f"\n{'='*60}")
-            print(f"正在抓取第 {page_num} 页：{url}")
-
-            try:
-                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            except Exception as e:
-                print(f"❌ 页面加载失败：{e}")
-                break
-
-            # 等待页面渲染
-            await asyncio.sleep(4)
+            print(f"正在抓取第 {page_num} 页：{page.url}")
 
             # 检查是否跳转到登录页
             if "signin" in page.url or "sign-in" in page.url:
@@ -196,8 +198,33 @@ async def get_amazon_reviews(
             all_reviews.extend(page_reviews)
             print(f"✅ 本页成功抓取 {len(page_reviews)} 条评论，累计 {len(all_reviews)} 条")
 
-            # 随机延迟，避免触发反爬
-            await asyncio.sleep(3)
+            # 若还需抓取更多页，点击「Next page」翻页
+            if page_num < pages:
+                await asyncio.sleep(3)
+                # 滚到页面底部使翻页按钮进入视口
+                await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                await asyncio.sleep(1)
+                next_clicked = False
+                for next_selector in [
+                    "a:has-text('Next page')",
+                    "li.a-last a",
+                    "a.a-pagination-next",
+                    "[data-hook='next-page']",
+                ]:
+                    next_btn = await page.query_selector(next_selector)
+                    if next_btn:
+                        try:
+                            await next_btn.click(timeout=5000)
+                            next_clicked = True
+                            await asyncio.sleep(4)
+                            break
+                        except Exception:
+                            continue
+                if not next_clicked:
+                    print("未找到或无法点击「Next page」，已到最后一页或结构变化，停止抓取。")
+                    break
+            else:
+                await asyncio.sleep(2)
 
         await browser.close()
 
@@ -246,7 +273,7 @@ if __name__ == "__main__":
     PAGES            = 2             # 爬取页数（每页约10条）
     LOCALE           = "com"        # 站点：com / co.jp / co.uk / de 等
     OUTPUT_DIR       = "output"     # 截图与评论数据统一输出目录
-    SAVE_SCREENSHOTS = False        # 是否保存每页调试截图（默认不保存）
+    SAVE_SCREENSHOTS = True        # 是否保存每页调试截图（默认不保存）
     # 按星级筛选：one_star / two_star / three_star / four_star / five_star / positive / critical，设为 "all" 抓全部
     FILTER_BY_STAR   = "one_star"
     # ============================
