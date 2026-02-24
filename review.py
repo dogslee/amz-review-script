@@ -7,12 +7,29 @@ from playwright.async_api import async_playwright
 OUTPUT_DIR = "output"
 
 
+def _reviews_url(
+    locale: str,
+    asin: str,
+    page_num: int,
+    filter_by_star: str | None,
+) -> str:
+    """拼评论页 URL，支持按星级筛选。"""
+    base = f"https://www.amazon.{locale}/product-reviews/{asin}"
+    params = f"pageNumber={page_num}&sortBy=recent"
+    if filter_by_star and filter_by_star.lower() != "all":
+        params += f"&filterByStar={filter_by_star.strip().lower()}"
+    if page_num > 1:
+        return f"{base}/ref=cm_cr_getr_d_paging_btm_next_{page_num}?{params}"
+    return f"{base}?{params}"
+
+
 async def get_amazon_reviews(
     asin: str,
     pages: int = 3,
     locale: str = "com",
     output_dir: str = OUTPUT_DIR,
     save_screenshots: bool = False,
+    filter_by_star: str | None = "one_star",
 ):
     """
     爬取亚马逊商品评论
@@ -22,6 +39,7 @@ async def get_amazon_reviews(
     :param locale:          站点后缀，如 com / co.jp / co.uk
     :param output_dir:      截图与数据的输出目录
     :param save_screenshots: 是否保存每页调试截图，默认 False
+    :param filter_by_star:  按星级筛选：one_star/two_star/three_star/four_star/five_star/positive/critical，传 "all" 或不传则不过滤
     """
     if not os.path.exists("amazon_state.json"):
         print("❌ 未找到登录状态文件 amazon_state.json，请先运行 step1_login.py")
@@ -59,16 +77,7 @@ async def get_amazon_reviews(
         page = await context.new_page()
 
         for page_num in range(1, pages + 1):
-            # 1星评论
-            url = (
-                f"https://www.amazon.{locale}/product-reviews/{asin}"
-                f"?pageNumber={page_num}&sortBy=recent&filterByStar=one_star"
-            )
-            if page_num > 1:
-                url = (
-                    f"https://www.amazon.{locale}/product-reviews/{asin}/ref=cm_cr_getr_d_paging_btm_next_{page_num}"
-                    f"?pageNumber={page_num}&sortBy=recent&filterByStar=one_star"
-                )
+            url = _reviews_url(locale, asin, page_num, filter_by_star)
             print(f"\n{'='*60}")
             print(f"正在抓取第 {page_num} 页：{url}")
 
@@ -233,11 +242,13 @@ def save_to_csv(reviews: list, output_dir: str = OUTPUT_DIR, filename: str = "re
 
 if __name__ == "__main__":
     # ========== 配置区 ==========
-    ASIN            = "B0CG5FTHT9"  # 替换为目标商品 ASIN
-    PAGES           = 2             # 爬取页数（每页约10条）
-    LOCALE          = "com"         # 站点：com / co.jp / co.uk / de 等
-    OUTPUT_DIR      = "output"      # 截图与评论数据统一输出目录
+    ASIN             = "B0CG5FTHT9"  # 替换为目标商品 ASIN
+    PAGES            = 2             # 爬取页数（每页约10条）
+    LOCALE           = "com"        # 站点：com / co.jp / co.uk / de 等
+    OUTPUT_DIR       = "output"     # 截图与评论数据统一输出目录
     SAVE_SCREENSHOTS = False        # 是否保存每页调试截图（默认不保存）
+    # 按星级筛选：one_star / two_star / three_star / four_star / five_star / positive / critical，设为 "all" 抓全部
+    FILTER_BY_STAR   = "one_star"
     # ============================
 
     reviews = asyncio.run(
@@ -247,6 +258,7 @@ if __name__ == "__main__":
             locale=LOCALE,
             output_dir=OUTPUT_DIR,
             save_screenshots=SAVE_SCREENSHOTS,
+            filter_by_star=FILTER_BY_STAR,
         )
     )
 
